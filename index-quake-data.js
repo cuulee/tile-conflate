@@ -4,40 +4,29 @@ var turf = require('turf');
 var fs = require('fs');
 
 //data
-var pga = JSON.parse(fs.readFileSync(__dirname+'/data/pga.geojson'));
-var pgv = JSON.parse(fs.readFileSync(__dirname+'/data/pgv.geojson'));
+var slopemin = JSON.parse(fs.readFileSync(__dirname+'/data/chitt_soils_slopes.geojson'));
 
-var coveropts = {min_zoom: 15, max_zoom: 15};
+// set zoom level for tiles
+var coveropts = {min_zoom: 17, max_zoom: 17};
 var tiles = {};
 
-//peak ground acceleration
-pga.features.forEach(function(contour){
-  var contourTiles = cover.tiles(contour.geometry, coveropts);
-  contourTiles.forEach(function(tile){
+// calculate minimum slope for each tile
+slopemin.features.forEach(function(soilPoly){
+  var soilPolyTiles = cover.tiles(soilPoly.geometry, coveropts);
+  soilPolyTiles.forEach(function(tile){
     if(!tiles[id(tile)]){
       tiles[id(tile)] = {
-        pga: 0,
-        pgv: 0
+        slopemin: 0
       };
     }
-    if(tiles[id(tile)].pga < contour.properties.PARAMVALUE) {
-      tiles[id(tile)].pga = contour.properties.PARAMVALUE;
-    }
-  });
-});
-
-//peak ground velocity
-pgv.features.forEach(function(contour){
-  var contourTiles = cover.tiles(contour.geometry, coveropts);
-  contourTiles.forEach(function(tile){
-    if(!tiles[id(tile)]){
-      tiles[id(tile)] = {
-        pga: 0,
-        pgv: 0
-      };
-    }
-    if(tiles[id(tile)].pgv < contour.properties.PARAMVALUE) {
-      tiles[id(tile)].pgv = contour.properties.PARAMVALUE;
+    if (tiles[id(tile)].slopemin < soilPoly.properties.SLOPELOW) {
+      //handle the nodota value
+      if (soilPoly.properties.SLOPELOW == 999) {
+        tiles[id(tile)].slopemin = 0;
+      } 
+      else {
+        tiles[id(tile)].slopemin = soilPoly.properties.SLOPELOW;
+      }
     }
   });
 });
@@ -49,6 +38,7 @@ Object.keys(tiles).forEach(function(tile){
   fc.features.push(poly);
 });
 
+// write out the prepared tiles w/ values
 fs.writeFileSync(__dirname+'/data/tiles.geojson', JSON.stringify(fc));
 fs.writeFileSync(__dirname+'/data/tiles.json', JSON.stringify(tiles));
 

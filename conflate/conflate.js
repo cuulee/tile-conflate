@@ -10,51 +10,19 @@ module.exports = function conflate(tileLayers, tile, done){
   var tiles = JSON.parse(fs.readFileSync(__dirname+'/../data/tiles.json'));
 
   // clean vector tile data
-  var roads = normalize(flatten(tileLayers.streets.road));
-  roads.features = roads.features.concat(normalize(flatten(tileLayers.streets.bridge)).features);
-  roads.features = roads.features.concat(normalize(flatten(tileLayers.streets.tunnel)).features);
   var buildings = normalize(flatten(tileLayers.streets.building));
-  roads = clip(roads, tile);
-  roads = normalize(flatten(roads));
-  roads = cleanLines(roads);
   buildings = cleanPolys(buildings);
 
   // attach data    
-  roads.features.forEach(function(road){
-    road.properties = interpolate(tile, tiles, turf.centroid(road));
-  });
   buildings.features.forEach(function(building){
     building.properties = interpolate(tile, tiles, turf.centroid(building));
   });
 
   var layers = {
-    roads: roads,
     buildings: buildings
   };
 
   done(null, layers);
-}
-
-function clip(lines, tile) {
-  lines.features = lines.features.map(function(line){
-      try {
-        var clipped = turf.intersect(line, turf.polygon(tilebelt.tileToGeoJSON(tile).coordinates));
-        return clipped;
-      } catch(e){
-        return;
-      }
-    });
-    lines.features = lines.features.filter(function(line){
-      if(line) return true;
-    });
-    return lines;
-}
-
-function cleanLines (lines) {
-  lines.features.filter(function(line){
-    if(line.geometry.type === 'LineString' || line.geometry.type === 'MultiLineString') return true;
-  });
-  return lines;
 }
 
 function cleanPolys (polys) {
@@ -86,17 +54,11 @@ function interpolate(t, tiles, pt) {
   kernels.features.push(kernelToPoint(bottomLeft, tiles));
   kernels.features.push(kernelToPoint(bottomRight, tiles));
   
-  var pgaTin = turf.tin(kernels, 'pga');
-  var pgvTin = turf.tin(kernels, 'pgv');
+  var soilTin = turf.tin(kernels, 'slopemin');
 
-  pgaTin.features.forEach(function(tri){
+  soilTin.features.forEach(function(tri){
     if(turf.inside(pt, tri)){
-      pt.properties.pga = turf.planepoint(pt, tri);
-    }
-  });
-  pgvTin.features.forEach(function(tri){
-    if(turf.inside(pt, tri)){
-      pt.properties.pgv = turf.planepoint(pt, tri);
+      pt.properties.slopemin = turf.planepoint(pt, tri);
     }
   });
   return pt.properties;

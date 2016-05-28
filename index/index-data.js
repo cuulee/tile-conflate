@@ -1,13 +1,18 @@
+// PREPARE A SET OF TILES WITH A VALUE AGGREGATED FROM A GEOJSON DATASET
+// USAGE: node index.js <filename> <valuename>
+
 var cover = require('tile-cover');
 var tilebelt = require('tilebelt');
 var turf = require('turf');
 var fs = require('fs');
 
-//data
-var slopemin = JSON.parse(fs.readFileSync(__dirname+'/data/chitt_soils_slopes.geojson'));
+var indexFile = process.argv[2];
+var indexVal = process.argv[3];
+
+var slopemin = JSON.parse(fs.readFileSync(indexFile));
 
 // set zoom level for tiles
-var coveropts = {min_zoom: 17, max_zoom: 17};
+var coveropts = {min_zoom: 16, max_zoom: 16};
 var tiles = {};
 
 // calculate minimum slope for each tile
@@ -19,13 +24,13 @@ slopemin.features.forEach(function(soilPoly){
         slopemin: 0
       };
     }
-    if (tiles[id(tile)].slopemin < soilPoly.properties.SLOPELOW) {
+    if (tiles[id(tile)].slopemin < soilPoly.properties[indexVal]) {
       //handle the nodota value
-      if (soilPoly.properties.SLOPELOW == 999) {
+      if (soilPoly.properties[indexVal] == 999) {
         tiles[id(tile)].slopemin = 0;
       } 
       else {
-        tiles[id(tile)].slopemin = soilPoly.properties.SLOPELOW;
+        tiles[id(tile)].slopemin = soilPoly.properties[indexVal];
       }
     }
   });
@@ -39,8 +44,8 @@ Object.keys(tiles).forEach(function(tile){
 });
 
 // write out the prepared tiles w/ values
-fs.writeFileSync(__dirname+'/data/tiles.geojson', JSON.stringify(fc));
-fs.writeFileSync(__dirname+'/data/tiles.json', JSON.stringify(tiles));
+fs.writeFileSync(__dirname+'../data/tiles.geojson', JSON.stringify(fc));
+fs.writeFileSync(__dirname+'../data/tiles.json', JSON.stringify(tiles));
 
 function id (tile){
   return tile[0] + '/' + tile[1] + '/' + tile[2];
